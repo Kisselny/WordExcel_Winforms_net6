@@ -14,163 +14,25 @@ namespace WordExcel_Winforms_net6
 {
     internal class WordArgs
     {
+
         public int counter; //счетчик, используется, когда ПЗ пронумерованы пачками, в стиле "занятие №4-7"
 
         public int semester;
         public string fullTopic;
-        public string sourceFile;
-        public string wordFile = String.Empty;
         public string exCell;
-
-        public OfficeOpenXml.ExcelWorksheet excelSheet_Global; //эти две херни для экселя и ворда, чтобы мы могли иметь доступ
-        public DocumentFormat.OpenXml.Wordprocessing.Table wordTable_Global; //... к соответствующим таблицам из данного класса без этих непонятных using-ов со скобочками()
-        //public Table wordTable; //нахера этот был нужен?? верхний я создал попозже, а этот как-будто бы не вызывался ваще ничем
-
-
         public string clearCell;
-        public string source_ext = "nothing"; //определяем, таблица или ворд файл мы открыли
-
         public int lessonNow, topicNow; // это когда в ворде (или не только) номер следующего занятия не вписан
         public (int lastTopic, int lastLesson) scanLast; // попробуем prevLessonNum заменить на это, чтобы у предыдущего номера занятия был ассоциированный номер
-
         public int[] lessonNumbers;
-
         List<int> matches;
-
-        char[] alpha = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".ToCharArray(); // алфавит как раз-таки для EPPlus
-        public string[] books = new string[0]; //подгружаем список книг
-        public string[] shapka = new string[0]; //содержание учебных занятий из источника
-        public string[] contents_right = new string[0]; //подгружаем содержание для правого столбца из файла
-        public bool externalContensRight = false; // короче, это переменная обманчивая. на самом деле тут значение true и false должно восприниматься наоборот относительно названия переменной
+        public List<string> parts = new List<string>();
+        public List<string> splittedText = new List<string>();
+        
         public Xceed.Document.NET.Document the_doc; // это тип документа в var document = DocX.Load(wordArgs.wordFile)
                                                     //он нужен чтобы передать .Load вне цикла внутрь метода Word(), но почему-то сохраняется только  1й ппз
 
 
-        public int searchInSource(int column, int row) //
-        {
-            //Console.WriteLine("вызов поиска");
-            string exCell;
-            try //как будто бы я здесь определил всю логику работы метода как для вызова из экселя, так и для вызова из ворда
-            {
-                if (source_ext == ".xlsx")
-                {
-                    string cell = alpha[column].ToString() + row.ToString(); // ну и эта по идее тоже для Эксель
-                    exCell = excelSheet_Global.Cells[cell].Value.ToString(); // эта строка точно для работы с методом Excel в формате EPPlus. для этого же и алфавит вверху
-                }
-                else
-                {
-                    var rowHere = wordTable_Global.Elements<DocumentFormat.OpenXml.Wordprocessing.TableRow>().ElementAt(row);
-                    exCell = rowHere.Elements<DocumentFormat.OpenXml.Wordprocessing.TableCell>().ElementAt(column).InnerText;  
-                }
-                
-                var match = Regex.Match(exCell, @"\d*");
-                //if (match.Success) Console.WriteLine("матч: " + match.Value + " - " + int.Parse(match.Value));
-                return int.Parse(match.Value);
-            }
-            catch (ArgumentNullException)
-            {
-                //Console.WriteLine("EX 1");
-                return 0;
-            }
-            catch (FormatException)
-            {
-                //Console.WriteLine("EX 2");
-                return 0;
-            }
-        }
-
-        public void WordBuild(WordArgs wordArgs) // TODO в методе нужно заменить переменную номера занятия на массив как для ворда так и для экселя
-        {
-            //выбираем книжки по семестру)))
-            int a = 0, b = 0;
-            switch (wordArgs.semester)  // перенести всю эту историю в Main
-            {
-                case 2: a = 0; b = 1; break;
-                case 3: a = 1; b = 2; break;
-                case 4: a = 1; b = 3; break;
-                case 5: a = 2; b = 4; break;
-                case 6: a = 3; b = 4; break;
-                case 7: a = 4; b = 7; break;
-                case 8: a = 5; b = 6; break;
-                case 9: a = 5; b = 7; break;
-            }
-
-
-            //       var document = wordArgs.the_doc;
-            using (var document = DocX.Load(wordArgs.wordFile))
-
-
-            //  using (var document = DocX.Load(@"E:\Repos\WordExcel_net5\bin\Debug\Test.docx"))
-            {
-
-                document.SetDefaultFont(new Xceed.Document.NET.Font("Times New Roman"), 14);
-                // Create a paragraph and insert text.
-
-                string header = String.Format(wordArgs.shapka[0] + wordArgs.lessonNumbers[counter]);
-                document.InsertParagraph(header).Alignment = Alignment.center;
-                document.InsertParagraph(wordArgs.fullTopic).Alignment = Alignment.both;
-                document.InsertParagraph(wordArgs.shapka[1]).Alignment = Alignment.both;
-                document.InsertParagraph(wordArgs.shapka[2]).Alignment = Alignment.both;
-                document.InsertParagraph(wordArgs.shapka[3]).Alignment = Alignment.both;
-                document.InsertParagraph(wordArgs.shapka[4]).Alignment = Alignment.both;
-                document.InsertParagraph(wordArgs.shapka[5]).Alignment = Alignment.both;
-                document.InsertParagraph(wordArgs.shapka[6]).Alignment = Alignment.both;
-                document.InsertParagraph(wordArgs.shapka[7]).Alignment = Alignment.both;
-                document.InsertParagraph("  1. " + wordArgs.books[a] + "\n  2. " + wordArgs.books[b]).Alignment = Alignment.left;
-                document.InsertParagraph(wordArgs.shapka[8]).Alignment = Alignment.both;
-                var p2 = document.InsertParagraph();
-                var t = p2.InsertTableAfterSelf(2, 2);
-                document.InsertParagraph("\n");
-
-                //     string[] splittedText, parts;
-                List<string> parts = new List<string>();
-                List<string> splittedText = new List<string>();
-                regexOperations(wordArgs, t, out splittedText, out parts);
-
-                {
-                    t.Rows[0].Cells[0].Paragraphs[0].Append("Учебные вопросы и время, отведенное на их рассмотрение");
-                    t.Rows[0].Cells[1].Paragraphs[0].Append("Методические рекомендации руководителю учебного занятия");
-                    t.Rows[1].Cells[0].Paragraphs[0].Append("Вступительная часть (5 минут)");
-                    t.Rows[1].Cells[1].Paragraphs[0].Append("Доклад командира группы о готовности к занятиям. Объявление темы и целей занятий.");
-                    
-                    for (int i = 0; i < splittedText.Count; i++)
-                    {
-                        Row dynamicRow = t.InsertRow();
-                        dynamicRow.Cells[0].Paragraphs.First().Append(parts[i]);
-                        dynamicRow.Cells[0].Paragraphs[0].Append(splittedText[i]);
-                        //дальше выбираем, будет ли правый столбец будет браться из внешнего файла, или будет дополняться содержанием правого столбца
-                        if (wordArgs.externalContensRight == false) //
-                        {
-                            dynamicRow.Cells[1].Paragraphs.First().Append
-                                                (wordArgs.contents_right[i % wordArgs.contents_right.Length]); // здесь знак "%" возвращает в начало содержания, если в левом столбце больше частей, чем в данном массиве 
-                        }
-                        else
-                        {
-                            if (splittedText[i].Contains("активной форме")) 
-                            {//Если есть активная форма, то не нужно ничего подставлять в начале
-                                
-                                dynamicRow.Cells[1].Paragraphs.First().Append(splittedText[i]);
-                            }
-                            else
-                            {
-                                dynamicRow.Cells[1].Paragraphs.First().Append
-                                                        ("Группа изучает " + char.ToLower(splittedText[i][0]) + splittedText[i].Substring(1));
-                            }
-                            
-                        }
-                        t.Rows.Add(dynamicRow);
-                    }
-
-                    Row nextStaticRow = t.InsertRow();
-                    nextStaticRow.Cells[0].Paragraphs[0].Append("Заключительная часть (5 минут)");
-                    nextStaticRow.Cells[1].Paragraphs[0].Append("Подведение итогов занятия. Ответ на вопросы слушателей. Выставление оценок. Объявление задания для самостоятельной работы.");
-                    t.Rows.Add(nextStaticRow);
-                }
-                document.Save(); // Save this document to disk.
-            }
-        }
-
-        private static void regexOperations(WordArgs wordArgs, Table t, out List<string> splittedText, out List<string> parts) // это извлечённый метод, поэтому много аргументов. можно было бы поработать нам тем, чтобы все их сделать частями класса
+        public void regexOperations(WordArgs wordArgs) // это извлечённый метод, поэтому много аргументов. можно было бы поработать нам тем, чтобы все их сделать частями класса
         {
 
             string pattern2 = @"\n|\;|(?<!форме)\.\s?|(В активной.*)"; //решил не делать 2 этапа разбиения, пусть сразу будет много и тогда если че ужмём

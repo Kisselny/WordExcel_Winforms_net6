@@ -81,6 +81,7 @@
             this.progressBar1.Name = "progressBar1";
             this.progressBar1.Size = new System.Drawing.Size(529, 69);
             this.progressBar1.TabIndex = 3;
+            this.progressBar1.Click += new System.EventHandler(this.progressBar1_Click);
             // 
             // textBox1
             // 
@@ -195,7 +196,7 @@
         private Button button2;
         private Button button1;
         private Button button3;
-        private ProgressBar progressBar1;
+        public ProgressBar progressBar1;
         private TextBox textBox1;
         private TextBox textBox2;
         private Button button4;
