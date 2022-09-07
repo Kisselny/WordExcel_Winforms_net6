@@ -14,7 +14,7 @@ namespace WordExcel_Winforms_net6
 {
     internal class WordArgs
     {
-
+        //should be unused
         public int counter; //счетчик, используется, когда ПЗ пронумерованы пачками, в стиле "занятие №4-7"
 
         public int semester;
@@ -24,6 +24,12 @@ namespace WordExcel_Winforms_net6
         public int lessonNow, topicNow; // это когда в ворде (или не только) номер следующего занятия не вписан
         public (int lastTopic, int lastLesson) scanLast; // попробуем prevLessonNum заменить на это, чтобы у предыдущего номера занятия был ассоциированный номер
         public int[] lessonNumbers;
+
+// это новая переменная. я её ввёл уже на этапе ввода очереди. мне понадобилось избавиться от использования counter
+// использовать другие подходящие типа "lessonNow" не решился, потому что возможно пришлось бы отслеживать нарушения их использования в других методах. возможно следовало бы просто более явно именовать их
+        
+        public int topicNumForDequeue; 
+        
         List<int> matches;
         public List<string> parts = new List<string>();
         public List<string> splittedText = new List<string>();
@@ -31,10 +37,30 @@ namespace WordExcel_Winforms_net6
         public Xceed.Document.NET.Document the_doc; // это тип документа в var document = DocX.Load(wordArgs.wordFile)
                                                     //он нужен чтобы передать .Load вне цикла внутрь метода Word(), но почему-то сохраняется только  1й ппз
 
+        //copy constructor
+        public WordArgs(WordArgs prev)
+        {
+            semester = prev.semester;
+            fullTopic = prev.fullTopic;
+            exCell = prev.exCell;
+            clearCell = prev.clearCell;
+            lessonNow = prev.lessonNow;
+            topicNow = prev.topicNow; 
+            scanLast = prev.scanLast; 
+            lessonNumbers = prev.lessonNumbers;
+            topicNumForDequeue = prev.topicNumForDequeue;
+            matches = prev.matches;
+            parts = prev.parts ;
+            splittedText = prev.splittedText;
+            the_doc = prev.the_doc;
+        }
+        public WordArgs()
+        {
+
+        }
 
         public void regexOperations(WordArgs wordArgs) // это извлечённый метод, поэтому много аргументов. можно было бы поработать нам тем, чтобы все их сделать частями класса
         {
-
             string pattern2 = @"\n|\;|(?<!форме)\.\s?|(В активной.*)"; //решил не делать 2 этапа разбиения, пусть сразу будет много и тогда если че ужмём
             Regex rgx = new Regex(pattern2);
             splittedText = rgx.Split(wordArgs.clearCell).ToList(); //вот здесь укасывается максимальное количество разбиений. для этого выше создается отдельный объект регекс

@@ -43,10 +43,12 @@ namespace WordExcel_Winforms_net6
         public string[] contents_right = new string[0]; //подгружаем содержание для правого столбца из файла
         public OfficeOpenXml.ExcelWorksheet excelSheet_Global;
         public bool externalContensRight = false; // короче, это переменная обманчивая. на самом деле тут значение true и false должно восприниматься наоборот относительно названия переменной
+        Queue<WordArgs> argsQ = new Queue<WordArgs>();
+
         internal void source_XML_Word()
         {
-
             
+
             // Open a WordprocessingDocument for editing using the filepath.
             using (WordprocessingDocument src_docx =
                 WordprocessingDocument.Open(sourceFile, true))
@@ -87,11 +89,19 @@ namespace WordExcel_Winforms_net6
                     {
                         wordArgs.lessonNumbers = LessonNumbers(cell.InnerText, wordArgs, i);
 
-                        for (wordArgs.counter = 0; wordArgs.counter < wordArgs.lessonNumbers.Length; wordArgs.counter++)
+                        for (int cnt = 0; cnt < wordArgs.lessonNumbers.Length; cnt++)
                         {
-                            //wordArgs.WordBuild(wordArgs); //здесь мы вызываем главный метод, чтоб строить результирующий документ. в методе нужно заменить переменную номера занятия на массив как для ворда так и для экселя
                             wordArgs.regexOperations(wordArgs);
-                            WordBuild(wordArgs);
+                            wordArgs.topicNumForDequeue = wordArgs.lessonNumbers[cnt];
+
+
+                            // разобрался к херам: объекты передаются в очередь по ссылке, а не по значению
+                            //что-то что-то копирование и клонирование объекта
+                            //https://stackoverflow.com/questions/16601750/c-sharp-queue-objects-modified-in-queue-after-being-enqueued
+                            //https://stackoverflow.com/questions/78536/deep-cloning-objects/78577#78577
+                            //решил проблему, используя конструктор копии. всё работает
+
+                            argsQ.Enqueue(new WordArgs(wordArgs));
                         }
                     }
                 }
@@ -110,55 +120,57 @@ namespace WordExcel_Winforms_net6
 
         internal async Task source_is_Excel()
 		{
-			//using (ExcelPackage package = new ExcelPackage(new FileInfo(sourceFile)))
-			//{
-			//	ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
-			//	var sheet = package.Workbook.Worksheets["Лист2"];
-			//	excelSheet_Global = package.Workbook.Worksheets["Лист2"];
-			//	//  using (wordArgs.the_doc = DocX.Load(wordArgs.wordFile)) // попытка использовать .Load вне цикла: сохраняется только 1й ппз. только он
-			//	{
-			//		for (int k = 8; k <= 523; k++) // last working value = 89 / 523  // <- не забыть вернуть полный цикл
-			//		{
-			//			string cell = "B" + k.ToString(); // эти две обязательно находятся внутри цикла
-			//			string exCell = excelSheet_Global.Cells[cell].Value.ToString();
+            using (ExcelPackage package = new ExcelPackage(new FileInfo(sourceFile)))
+            {
+                ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+                var sheet = package.Workbook.Worksheets["Лист2"];
+                excelSheet_Global = package.Workbook.Worksheets["Лист2"];
+                //  using (wordArgs.the_doc = DocX.Load(wordArgs.wordFile)) // попытка использовать .Load вне цикла: сохраняется только 1й ппз. только он
+                {
+                    for (int k = 8; k <= 523; k++) // last working value = 89 / 523  // <- не забыть вернуть полный цикл
+                    {
+                        WordArgs wordArgs = new WordArgs();
+                        string cell = "B" + k.ToString(); // эти две обязательно находятся внутри цикла
+                        string exCell = excelSheet_Global.Cells[cell].Value.ToString();
+                        //while(excelSheet_Global.Cells[cell].last
 
 
 
-			//			//узнаем номер семестра, чтобы раскидывать литературу
-			//			if (Regex.Match(exCell, @"\d\sсеместр").Success) wordArgs.semester = int.Parse(Regex.Match(exCell, @"\d+").Value);
+                        //узнаем номер семестра, чтобы раскидывать литературу
+                        if (Regex.Match(exCell, @"\d\sсеместр").Success) wordArgs.semester = int.Parse(Regex.Match(exCell, @"\d+").Value);
 
-			//			if (exCell.Contains("Тема ") && Char.IsNumber(exCell[5]) /* && exCell.Contains(". \"")*/)
-			//			{
-			//				wordArgs.topicNow = int.Parse(Regex.Match(exCell, @"\d+").Value);
-			//				string topicName = exCell.Remove(0, 7);
-			//				wordArgs.fullTopic = String.Format("по теме № {0}. {1};", wordArgs.topicNow, topicName);
-			//			}
+                        if (exCell.Contains("Тема ") && Char.IsNumber(exCell[5]) /* && exCell.Contains(". \"")*/)
+                        {
+                            wordArgs.topicNow = int.Parse(Regex.Match(exCell, @"\d+").Value);
+                            string topicName = exCell.Remove(0, 7);
+                            wordArgs.fullTopic = String.Format("по теме № {0}. {1};", wordArgs.topicNow, topicName);
+                        }
 
-			//			if (exCell.Contains("Практическое занятие №"))
-			//			{
-			//				string pattern = @"Практическое занятие №(\s)?\d{1,4}([\s\p{P}])?([\d\s\p{P}])+\b";
-			//				string replacement = "";
-			//				wordArgs.clearCell = Regex.Replace(exCell, pattern, replacement);
-			//				wordArgs.exCell = exCell;
-			//				//		wordArgs.lessonNumber = Regex.Match(exCell, @"\d+").Value;
-			//				/* NEW:*/
-			//		//		wordArgs.lessonNumbers = new int[] { int.Parse(Regex.Match(exCell, @"\d+").Value) }; // попробуем заменить эту команду на вызов функции, пусть все работает универсально
-			//				wordArgs.lessonNumbers = LessonNumbers(exCell, wordArgs, k);
-			//				for (wordArgs.counter = 0; wordArgs.counter < wordArgs.lessonNumbers.Length; wordArgs.counter++)
-			//				{	// теперь тут еще и вложенный луп, чтобы экселевский метод работал, как вордовский, используя только массив номеров, а не отдельный номер
-			//					WordBuild(wordArgs); // самое важное - вызов функции внутри лупа. заменил кучу аргументов на объект
-			//												  //  wordArgs.the_doc.Save();
-			//					Console.WriteLine(wordArgs.lessonNumbers[wordArgs.counter] + " done");
-			//				}
-							
-			//			}
+                        if (exCell.Contains("Практическое занятие №"))
+                        {
+                            string pattern = @"Практическое занятие №(\s)?\d{1,4}([\s\p{P}])?([\d\s\p{P}])+\b";
+                            string replacement = "";
+                            wordArgs.clearCell = Regex.Replace(exCell, pattern, replacement);
+                            wordArgs.exCell = exCell;
+                            //		wordArgs.lessonNumber = Regex.Match(exCell, @"\d+").Value;
+                            /* NEW:*/
+                            //		wordArgs.lessonNumbers = new int[] { int.Parse(Regex.Match(exCell, @"\d+").Value) }; // попробуем заменить эту команду на вызов функции, пусть все работает универсально
+                            wordArgs.lessonNumbers = LessonNumbers(exCell, wordArgs, k);
+                            for (int cnt = 0; cnt < wordArgs.lessonNumbers.Length; cnt++)
+                            {   // теперь тут еще и вложенный луп, чтобы экселевский метод работал, как вордовский, используя только массив номеров, а не отдельный номер
+                                wordArgs.regexOperations(wordArgs);
+                                wordArgs.topicNumForDequeue = wordArgs.lessonNumbers[cnt];
+                                argsQ.Enqueue(new WordArgs(wordArgs));
+                            }
 
-			//		}
+                        }
 
-			//		MessageBox.Show("Готово!");
-			//	}
-			//}
-		}
+                    }
+
+                    MessageBox.Show("Готово!");
+                }
+            }
+        }
 
         internal Task WordBuild(WordArgs wordArgs) // TODO в методе нужно заменить переменную номера занятия на массив как для ворда так и для экселя
         {
@@ -184,8 +196,10 @@ namespace WordExcel_Winforms_net6
 
                 document.SetDefaultFont(new Xceed.Document.NET.Font("Times New Roman"), 14);
                 // Create a paragraph and insert text.
-
-                string header = String.Format(shapka[0] + wordArgs.lessonNumbers[wordArgs.counter]);
+                /*TODO в строчке снизу есть баг с ошибкой оверфлоу, потому что до внедрения очереди 
+                 * глобальный каунтер из класса управлялся циклом for вне этого класса. изза этого 
+                 * при первоначальном внедрении отдельного метода Dequeue этот каунтер не сбрасывается, потому что*/
+                string header = String.Format(shapka[0] + wordArgs.topicNumForDequeue); //this one
                 document.InsertParagraph(header).Alignment = Alignment.center;
                 document.InsertParagraph(wordArgs.fullTopic).Alignment = Alignment.both;
                 document.InsertParagraph(shapka[1]).Alignment = Alignment.both;
@@ -366,6 +380,15 @@ namespace WordExcel_Winforms_net6
             //        Console.Write(match + " - ");// match.Value will contain one of the matches
             //    }
         }
+
+        internal void MasterFnc()
+        {
+            while (argsQ.Count > 0)
+            {
+                WordBuild(argsQ.Dequeue());
+            }
+        }
+            
 
     }
 }

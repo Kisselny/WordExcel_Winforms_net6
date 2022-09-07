@@ -47,19 +47,23 @@ namespace WordExcel_Winforms_net6
         {
             if (b1.wordFile != String.Empty && b1.books.Length != 0 && b1.shapka.Length != 0 && (checkBox1.Checked || b1.contents_right.Length != 0))
             {
+
                 if (b1.source_ext == ".xlsx")
                 {
                     
                     b1.source_is_Excel();
+                    b1.MasterFnc();
                 }
                 else if (b1.source_ext == ".docx")
                 {
                     b1.source_XML_Word();
+                    b1.MasterFnc();
                 }
                 else
                 {
                     MessageBox.Show("Ой. Кажется, вы не выбрали темплан в качестве источника ППЗ. Это следует сделать прежде, чем мы сможем продолжить:)");
-                } 
+                }
+                
             }
             else
             {   //проверяем всё, чего может не хватать
