@@ -43,77 +43,11 @@ namespace WordExcel_Winforms_net6
         public string[] contents_right = new string[0]; //подгружаем содержание для правого столбца из файла
         public OfficeOpenXml.ExcelWorksheet excelSheet_Global;
         public bool externalContensRight = false; // короче, это переменная обманчивая. на самом деле тут значение true и false должно восприниматься наоборот относительно названия переменной
-        Queue<WordArgs> argsQ = new Queue<WordArgs>();
-
-        internal void source_XML_Word()
-        {
-            
-
-            // Open a WordprocessingDocument for editing using the filepath.
-            using (WordprocessingDocument src_docx =
-                WordprocessingDocument.Open(sourceFile, true))
-            {
-                //Find the  table in the document.
-                wordTable_Global =
-                    src_docx.MainDocumentPart.Document.Body.Elements<DocumentFormat.OpenXml.Wordprocessing.Table>().ElementAt(1);
-
-                int row_count = wordTable_Global.Elements<TableRow>().Count();
-                Console.WriteLine("строк: " + row_count);
-                TableRow row; //объявляем эти штуки здесь, чтобы не внутри трай-кетча
-                TableCell cell;
-
-                for (int i = 0; i < row_count; i++)
-                {
-                    WordArgs wordArgs = new WordArgs();
-                    try
-                    {
-                        row = wordTable_Global.Elements<TableRow>().ElementAt(i);// Find the second row in the table.
-                        cell = row.Elements<TableCell>().ElementAt(1);// Find the third cell in the row.
-                        wordArgs.clearCell = row.Elements<TableCell>().ElementAt(2).InnerText;
-
-                    }
-                    catch (ArgumentOutOfRangeException)
-                    {
-                        continue;
-                    }
-
-                    if (cell.InnerText.ToString().Contains("семестр")) wordArgs.semester = int.Parse(Regex.Match(cell.InnerText.ToString(), @"\d+").Value);
-
-                    if (cell.InnerText.ToString().Contains("Тема"))
-                    {
-                        wordArgs.topicNow = int.Parse(Regex.Match(cell.InnerText.ToString(), @"\d+").Value);
-                        wordArgs.fullTopic = String.Format("по теме № {0}. {1};", wordArgs.topicNow, wordArgs.clearCell);
-                    }
-
-                    if (cell.InnerText.ToString().Contains("Практическое занятие"))
-                    {
-                        wordArgs.lessonNumbers = LessonNumbers(cell.InnerText, wordArgs, i);
-
-                        for (int cnt = 0; cnt < wordArgs.lessonNumbers.Length; cnt++)
-                        {
-                            wordArgs.regexOperations(wordArgs);
-                            wordArgs.topicNumForDequeue = wordArgs.lessonNumbers[cnt];
+        
+        public Queue<WordArgs> argsQ = new();
 
 
-                            // разобрался к херам: объекты передаются в очередь по ссылке, а не по значению
-                            //что-то что-то копирование и клонирование объекта
-                            //https://stackoverflow.com/questions/16601750/c-sharp-queue-objects-modified-in-queue-after-being-enqueued
-                            //https://stackoverflow.com/questions/78536/deep-cloning-objects/78577#78577
-                            //решил проблему, используя конструктор копии. всё работает
-
-                            argsQ.Enqueue(new WordArgs(wordArgs));
-                        }
-                    }
-                }
-                return;
-                //Paragraph p = cell.Elements<Paragraph>().FirstOrDefault();
-                //Run r = p.Elements<Run>().FirstOrDefault();
-                //Text t = r.Elements<Text>().FirstOrDefault();
-
-                //Console.WriteLine(t.Text);  
-                // src_docx.Save();
-            }
-        }
+        
 
        
 
@@ -381,13 +315,7 @@ namespace WordExcel_Winforms_net6
             //    }
         }
 
-        internal void MasterFnc()
-        {
-            while (argsQ.Count > 0)
-            {
-                WordBuild(argsQ.Dequeue());
-            }
-        }
+
             
 
     }

@@ -12,7 +12,7 @@ using System.Text.RegularExpressions;
 
 namespace WordExcel_Winforms_net6
 {
-    internal class WordArgs
+    public class WordArgs
     {
         //should be unused
         public int counter; //счетчик, используется, когда ПЗ пронумерованы пачками, в стиле "занятие №4-7"
@@ -56,7 +56,6 @@ namespace WordExcel_Winforms_net6
         }
         public WordArgs()
         {
-
         }
 
         public void regexOperations(WordArgs wordArgs) // это извлечённый метод, поэтому много аргументов. можно было бы поработать нам тем, чтобы все их сделать частями класса

@@ -33,45 +33,59 @@ namespace WordExcel_Winforms_net6
 {
     public partial class Form1 : Form
     {
+        
+        public Basics b1 = new Basics();
+        private int ops = 0;
 
+        public Form1(Form1 masterForm)
+        {
+            InitializeComponent();
+            int ops = 0;
+        }
 
-        Basics b1 = new Basics();
         public Form1()
         {
             InitializeComponent();
-        }
-        
+            label1.Text = "Ready";
 
+        }
 
         private void button1_Click(object sender, EventArgs e)
+        {
+            Form1 form1 = new Form1(this);
+            btn1Func();
+        }
+
+        private async void btn1Func()
         {
             if (b1.wordFile != String.Empty && b1.books.Length != 0 && b1.shapka.Length != 0 && (checkBox1.Checked || b1.contents_right.Length != 0))
             {
 
                 if (b1.source_ext == ".xlsx")
                 {
-                    
+
                     b1.source_is_Excel();
-                    b1.MasterFnc();
                 }
                 else if (b1.source_ext == ".docx")
                 {
-                    b1.source_XML_Word();
-                    b1.MasterFnc();
+                    await source_XML_Word();
+
                 }
                 else
                 {
                     MessageBox.Show("Ой. Кажется, вы не выбрали темплан в качестве источника ППЗ. Это следует сделать прежде, чем мы сможем продолжить:)");
+                    return;
                 }
-                
+                await MasterFnc();
             }
             else
             {   //проверяем всё, чего может не хватать
-                if(b1.wordFile == String.Empty) MessageBox.Show("Ой. Кажется, вы не указали, где сохранить план практических занятий. Их же нужно где-то хранить:)");
-                if(b1.books.Length == 0) MessageBox.Show("Необходимо выбрать список литературы:)");
+                if (b1.wordFile == String.Empty) MessageBox.Show("Ой. Кажется, вы не указали, где сохранить план практических занятий. Их же нужно где-то хранить:)");
+                if (b1.books.Length == 0) MessageBox.Show("Необходимо выбрать список литературы:)");
                 if (b1.shapka.Length == 0) MessageBox.Show("Нужно выбрать файл, в котором прописана \"шапка\" ППЗ :)");
                 if (b1.contents_right.Length == 0) MessageBox.Show("Необходимо выбрать файл с содержанием учебных вопросов, либо нажать галочку \"Взять из темплана\":)");
             }
+            return;
         }
 
 
@@ -179,6 +193,100 @@ namespace WordExcel_Winforms_net6
         {
 
         }
-        
+
+        private void label1_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        public async Task MasterFnc()
+        {
+            while (b1.argsQ.Count > 0)
+            {
+                await Task.Run(() => b1.WordBuild(b1.argsQ.Dequeue()));
+                labelOp();
+            }
+
+        }
+        public void labelOp()
+        {
+            ops++;
+            label1.Text = String.Format("Выполнено {0} планов практических занятий", ops.ToString());
+        }
+
+        internal async Task source_XML_Word()
+        {
+
+
+            // Open a WordprocessingDocument for editing using the filepath.
+            using (WordprocessingDocument src_docx =
+                WordprocessingDocument.Open(b1.sourceFile, true))
+            {
+                //Find the  table in the document.
+                b1.wordTable_Global =
+                    src_docx.MainDocumentPart.Document.Body.Elements<DocumentFormat.OpenXml.Wordprocessing.Table>().ElementAt(1);
+
+                int row_count = b1.wordTable_Global.Elements<TableRow>().Count();
+                Console.WriteLine("строк: " + row_count);
+                TableRow row; //объявляем эти штуки здесь, чтобы не внутри трай-кетча
+                TableCell cell;
+
+                for (int i = 0; i < row_count; i++)
+                {
+                    await Task.Run(() => insideLoop(i));
+                    progressBar1.PerformStep();
+                }
+                return;
+
+                void insideLoop(int i)
+                {
+                    WordArgs wordArgs = new WordArgs();
+                    try
+                    {
+                        row = b1.wordTable_Global.Elements<TableRow>().ElementAt(i);// Find the second row in the table.
+                        cell = row.Elements<TableCell>().ElementAt(1);// Find the third cell in the row.
+                        wordArgs.clearCell = row.Elements<TableCell>().ElementAt(2).InnerText;
+
+                    }
+                    catch (ArgumentOutOfRangeException)
+                    {
+                        //continue;
+                        return;
+                    }
+
+                    if (cell.InnerText.ToString().Contains("семестр")) wordArgs.semester = int.Parse(Regex.Match(cell.InnerText.ToString(), @"\d+").Value);
+
+                    if (cell.InnerText.ToString().Contains("Тема"))
+                    {
+                        wordArgs.topicNow = int.Parse(Regex.Match(cell.InnerText.ToString(), @"\d+").Value);
+                        wordArgs.fullTopic = String.Format("по теме № {0}. {1};", wordArgs.topicNow, wordArgs.clearCell);
+                    }
+
+                    if (cell.InnerText.ToString().Contains("Практическое занятие"))
+                    {
+                        wordArgs.lessonNumbers = b1.LessonNumbers(cell.InnerText, wordArgs, i);
+
+                        for (int cnt = 0; cnt < wordArgs.lessonNumbers.Length; cnt++)
+                        {
+                            wordArgs.regexOperations(wordArgs);
+                            wordArgs.topicNumForDequeue = wordArgs.lessonNumbers[cnt];
+
+
+                            // разобрался к херам: объекты передаются в очередь по ссылке, а не по значению
+                            //что-то что-то копирование и клонирование объекта
+                            //https://stackoverflow.com/questions/16601750/c-sharp-queue-objects-modified-in-queue-after-being-enqueued
+                            //https://stackoverflow.com/questions/78536/deep-cloning-objects/78577#78577
+                            //решил проблему, используя конструктор копии. всё работает
+
+                            b1.argsQ.Enqueue(new WordArgs(wordArgs));
+                        }
+                    }
+                }
+
+            }
+        }
+
+
+
     }
 }
