@@ -37,17 +37,36 @@ namespace WordExcel_Winforms_net6
         public Basics b1 = new Basics();
         private int ops = 0;
 
+        public void TemporaryTestMethod()
+        {
+            Random random = new Random();
+            string st = random.Next(0, 100).ToString();
+            b1.wordFile = @$"E:\Doki\Десктоп\{st}.docx";
+            textBox2.Text = @$"E:\Doki\Десктоп\{st}.docx";
+            using (var document = DocX.Create(b1.wordFile))
+            {
+                document.Save();
+            }
+            b1.source_ext = Path.GetExtension(textBox1.Text);
+            textBox3.Text = @"C:\литература-хинди.txt";
+            b1.books = System.IO.File.ReadAllLines(@"C:\литература-хинди.txt");
+            b1.shapka = System.IO.File.ReadAllLines(@"C:\шапка-хинди.txt");
+            textBox4.Text = @"C:\шапка-хинди.txt";
+            b1.contents_right = System.IO.File.ReadAllLines(@"C:\содержание-хинди.txt");
+            textBox5.Text = @"C:\содержание-хинди.txt";
+        }
+
         public Form1(Form1 masterForm)
         {
             InitializeComponent();
-            int ops = 0;
+
         }
 
         public Form1()
         {
             InitializeComponent();
             label1.Text = "Ready";
-
+            TemporaryTestMethod();// убрать метод, это чисто тестинг
         }
 
         private void button1_Click(object sender, EventArgs e)
@@ -201,20 +220,22 @@ namespace WordExcel_Winforms_net6
 
         public async Task MasterFnc()
         {
-            while (b1.argsQ.Count > 0)
+            using (var document = DocX.Load(b1.wordFile))
             {
-                await Task.Run(() => b1.WordBuild(b1.argsQ.Dequeue()));
-                labelOp();
+                b1.document = document;
+                while (b1.argsQ.Count > 0)
+                {
+                    await Task.Run(() => b1.WordBuild(b1.argsQ.Dequeue()));
+                    ops++;
+                    label1.Text = String.Format("Выполнено {0} планов практических занятий", ops.ToString());
+                    label2.Text = String.Format("Глубина очереди: " + b1.argsQ.Count.ToString());
+                }
             }
 
         }
-        public void labelOp()
-        {
-            ops++;
-            label1.Text = String.Format("Выполнено {0} планов практических занятий", ops.ToString());
-        }
 
-        internal async Task source_XML_Word()
+
+        public async Task source_XML_Word()
         {
 
 

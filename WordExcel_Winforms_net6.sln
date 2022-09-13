@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.1.32421.90
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WordExcel_Winforms_net6", "WordExcel_Winforms_net6.csproj", "{9FACA7C8-9339-4BB5-9D58-916B2288CAA3}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WordExcel_Winforms_net6", "WordExcel_Winforms_net6.csproj", "{9FACA7C8-9339-4BB5-9D58-916B2288CAA3}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

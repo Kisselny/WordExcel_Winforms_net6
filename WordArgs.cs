@@ -37,6 +37,8 @@ namespace WordExcel_Winforms_net6
         public Xceed.Document.NET.Document the_doc; // это тип документа в var document = DocX.Load(wordArgs.wordFile)
                                                     //он нужен чтобы передать .Load вне цикла внутрь метода Word(), но почему-то сохраняется только  1й ппз
 
+        
+
         //copy constructor
         public WordArgs(WordArgs prev)
         {

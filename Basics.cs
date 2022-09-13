@@ -46,10 +46,10 @@ namespace WordExcel_Winforms_net6
         
         public Queue<WordArgs> argsQ = new();
 
+        public Xceed.Words.NET.DocX document;
 
-        
 
-       
+
 
 
         internal async Task source_is_Excel()
@@ -108,6 +108,12 @@ namespace WordExcel_Winforms_net6
 
         internal Task WordBuild(WordArgs wordArgs) // TODO в методе нужно заменить переменную номера занятия на массив как для ворда так и для экселя
         {
+
+        //using (var document = DocX.Load(wordFile))
+
+
+            //  using (var document = DocX.Load(@"E:\Repos\WordExcel_net5\bin\Debug\Test.docx"))
+        //{
             //выбираем книжки по семестру)))
             int a = 0, b = 0;
             switch (wordArgs.semester)  // перенести всю эту историю в Main
@@ -122,11 +128,7 @@ namespace WordExcel_Winforms_net6
                 case 9: a = 5; b = 7; break;
             }
 
-            using (var document = DocX.Load(wordFile))
 
-
-            //  using (var document = DocX.Load(@"E:\Repos\WordExcel_net5\bin\Debug\Test.docx"))
-            {
 
                 document.SetDefaultFont(new Xceed.Document.NET.Font("Times New Roman"), 14);
                 // Create a paragraph and insert text.
@@ -191,9 +193,9 @@ namespace WordExcel_Winforms_net6
                     t.Rows.Add(nextStaticRow);
                 }
                 document.Save(); // Save this document to disk.
-            }
+        //}
             return Task.CompletedTask;
-        }
+    }
 
         public int searchInSource(int column, int row) //
         {
