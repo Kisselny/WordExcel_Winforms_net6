@@ -13,6 +13,7 @@ using System.Windows.Forms;
 //using System.Text.RegularExpressions;
 using Xceed.Document.NET;//*
 using Xceed.Words.NET;
+using System.Collections.Concurrent;
 
             //"Оператор using — это рекомендуемая альтернатива последовательности методов.Open, .Save, .Close.
             //Это гарантирует, что метод Dispose(внутренний метод, используемый Open XML SDK для очистки ресурсов) 
@@ -44,7 +45,7 @@ namespace WordExcel_Winforms_net6
         public OfficeOpenXml.ExcelWorksheet excelSheet_Global;
         public bool externalContensRight = false; // короче, это переменная обманчивая. на самом деле тут значение true и false должно восприниматься наоборот относительно названия переменной
         
-        public Queue<WordArgs> argsQ = new();
+        public ConcurrentQueue<WordArgs> argsQ = new();
 
         public Xceed.Words.NET.DocX document;
 
@@ -63,57 +64,57 @@ namespace WordExcel_Winforms_net6
                 {
                     for (int k = 8; k <= 523; k++) // last working value = 89 / 523  // <- не забыть вернуть полный цикл
                     {
-                        WordArgs wordArgs = new WordArgs();
-                        string cell = "B" + k.ToString(); // эти две обязательно находятся внутри цикла
-                        string exCell = excelSheet_Global.Cells[cell].Value.ToString();
-                        //while(excelSheet_Global.Cells[cell].last
-
-
-
-                        //узнаем номер семестра, чтобы раскидывать литературу
-                        if (Regex.Match(exCell, @"\d\sсеместр").Success) wordArgs.semester = int.Parse(Regex.Match(exCell, @"\d+").Value);
-
-                        if (exCell.Contains("Тема ") && Char.IsNumber(exCell[5]) /* && exCell.Contains(". \"")*/)
-                        {
-                            wordArgs.topicNow = int.Parse(Regex.Match(exCell, @"\d+").Value);
-                            string topicName = exCell.Remove(0, 7);
-                            wordArgs.fullTopic = String.Format("по теме № {0}. {1};", wordArgs.topicNow, topicName);
-                        }
-
-                        if (exCell.Contains("Практическое занятие №"))
-                        {
-                            string pattern = @"Практическое занятие №(\s)?\d{1,4}([\s\p{P}])?([\d\s\p{P}])+\b";
-                            string replacement = "";
-                            wordArgs.clearCell = Regex.Replace(exCell, pattern, replacement);
-                            wordArgs.exCell = exCell;
-                            //		wordArgs.lessonNumber = Regex.Match(exCell, @"\d+").Value;
-                            /* NEW:*/
-                            //		wordArgs.lessonNumbers = new int[] { int.Parse(Regex.Match(exCell, @"\d+").Value) }; // попробуем заменить эту команду на вызов функции, пусть все работает универсально
-                            wordArgs.lessonNumbers = LessonNumbers(exCell, wordArgs, k);
-                            for (int cnt = 0; cnt < wordArgs.lessonNumbers.Length; cnt++)
-                            {   // теперь тут еще и вложенный луп, чтобы экселевский метод работал, как вордовский, используя только массив номеров, а не отдельный номер
-                                wordArgs.regexOperations(wordArgs);
-                                wordArgs.topicNumForDequeue = wordArgs.lessonNumbers[cnt];
-                                argsQ.Enqueue(new WordArgs(wordArgs));
-                            }
-
-                        }
-
+                        await Task.Run(() => insideLoopXls(k));
+                        //progressBar1.PerformStep();
                     }
 
                     MessageBox.Show("Готово!");
                 }
             }
+
+            void insideLoopXls(int k)
+            {
+                WordArgs wordArgs = new WordArgs();
+                string cell = "B" + k.ToString(); // эти две обязательно находятся внутри цикла
+                string exCell = excelSheet_Global.Cells[cell].Value.ToString();
+                //while(excelSheet_Global.Cells[cell].last
+
+
+
+                //узнаем номер семестра, чтобы раскидывать литературу
+                if (Regex.Match(exCell, @"\d\sсеместр").Success) wordArgs.semester = int.Parse(Regex.Match(exCell, @"\d+").Value);
+
+                if (exCell.Contains("Тема ") && Char.IsNumber(exCell[5]) /* && exCell.Contains(". \"")*/)
+                {
+                    wordArgs.topicNow = int.Parse(Regex.Match(exCell, @"\d+").Value);
+                    string topicName = exCell.Remove(0, 7);
+                    wordArgs.fullTopic = String.Format("по теме № {0}. {1};", wordArgs.topicNow, topicName);
+                }
+
+                if (exCell.Contains("Практическое занятие №"))
+                {
+                    string pattern = @"Практическое занятие №(\s)?\d{1,4}([\s\p{P}])?([\d\s\p{P}])+\b";
+                    string replacement = "";
+                    wordArgs.clearCell = Regex.Replace(exCell, pattern, replacement);
+                    wordArgs.exCell = exCell;
+                    //		wordArgs.lessonNumber = Regex.Match(exCell, @"\d+").Value;
+                    /* NEW:*/
+                    //		wordArgs.lessonNumbers = new int[] { int.Parse(Regex.Match(exCell, @"\d+").Value) }; // попробуем заменить эту команду на вызов функции, пусть все работает универсально
+                    wordArgs.lessonNumbers = LessonNumbers(exCell, wordArgs, k);
+                    for (int cnt = 0; cnt < wordArgs.lessonNumbers.Length; cnt++)
+                    {   // теперь тут еще и вложенный луп, чтобы экселевский метод работал, как вордовский, используя только массив номеров, а не отдельный номер
+                        wordArgs.regexOperations(wordArgs);
+                        wordArgs.topicNumForDequeue = wordArgs.lessonNumbers[cnt];
+                        argsQ.Enqueue(new WordArgs(wordArgs));
+                    }
+
+                }
+                return;
+            }
         }
 
         internal Task WordBuild(WordArgs wordArgs) // TODO в методе нужно заменить переменную номера занятия на массив как для ворда так и для экселя
         {
-
-        //using (var document = DocX.Load(wordFile))
-
-
-            //  using (var document = DocX.Load(@"E:\Repos\WordExcel_net5\bin\Debug\Test.docx"))
-        //{
             //выбираем книжки по семестру)))
             int a = 0, b = 0;
             switch (wordArgs.semester)  // перенести всю эту историю в Main
@@ -128,74 +129,74 @@ namespace WordExcel_Winforms_net6
                 case 9: a = 5; b = 7; break;
             }
 
+                            
+
+                    document.SetDefaultFont(new Xceed.Document.NET.Font("Times New Roman"), 14);
+                    // Create a paragraph and insert text.
+                    /*TODO в строчке снизу есть баг с ошибкой оверфлоу, потому что до внедрения очереди 
+                     * глобальный каунтер из класса управлялся циклом for вне этого класса. изза этого 
+                     * при первоначальном внедрении отдельного метода Dequeue этот каунтер не сбрасывается, потому что*/
+                    string header = String.Format(shapka[0] + wordArgs.topicNumForDequeue); //this one
+                    document.InsertParagraph(header).Alignment = Alignment.center;
+                    document.InsertParagraph(wordArgs.fullTopic).Alignment = Alignment.both;
+                    document.InsertParagraph(shapka[1]).Alignment = Alignment.both;
+                    document.InsertParagraph(shapka[2]).Alignment = Alignment.both;
+                    document.InsertParagraph(shapka[3]).Alignment = Alignment.both;
+                    document.InsertParagraph(shapka[4]).Alignment = Alignment.both;
+                    document.InsertParagraph(shapka[5]).Alignment = Alignment.both;
+                    document.InsertParagraph(shapka[6]).Alignment = Alignment.both;
+                    document.InsertParagraph(shapka[7]).Alignment = Alignment.both;
+                    document.InsertParagraph("  1. " + books[a] + "\n  2. " + books[b]).Alignment = Alignment.left;
+                    document.InsertParagraph(shapka[8]).Alignment = Alignment.both;
+                    var p2 = document.InsertParagraph();
+                    var t = p2.InsertTableAfterSelf(2, 2);
+                    document.InsertParagraph("\n");
 
 
-                document.SetDefaultFont(new Xceed.Document.NET.Font("Times New Roman"), 14);
-                // Create a paragraph and insert text.
-                /*TODO в строчке снизу есть баг с ошибкой оверфлоу, потому что до внедрения очереди 
-                 * глобальный каунтер из класса управлялся циклом for вне этого класса. изза этого 
-                 * при первоначальном внедрении отдельного метода Dequeue этот каунтер не сбрасывается, потому что*/
-                string header = String.Format(shapka[0] + wordArgs.topicNumForDequeue); //this one
-                document.InsertParagraph(header).Alignment = Alignment.center;
-                document.InsertParagraph(wordArgs.fullTopic).Alignment = Alignment.both;
-                document.InsertParagraph(shapka[1]).Alignment = Alignment.both;
-                document.InsertParagraph(shapka[2]).Alignment = Alignment.both;
-                document.InsertParagraph(shapka[3]).Alignment = Alignment.both;
-                document.InsertParagraph(shapka[4]).Alignment = Alignment.both;
-                document.InsertParagraph(shapka[5]).Alignment = Alignment.both;
-                document.InsertParagraph(shapka[6]).Alignment = Alignment.both;
-                document.InsertParagraph(shapka[7]).Alignment = Alignment.both;
-                document.InsertParagraph("  1. " + books[a] + "\n  2. " + books[b]).Alignment = Alignment.left;
-                document.InsertParagraph(shapka[8]).Alignment = Alignment.both;
-                var p2 = document.InsertParagraph();
-                var t = p2.InsertTableAfterSelf(2, 2);
-                document.InsertParagraph("\n");
-
-                //regexOperations(wordArgs); //вызов функции здесь больше не нужен, потмоу что  функция вызывается из Soure_is метода
-
-                {
-                    t.Rows[0].Cells[0].Paragraphs[0].Append("Учебные вопросы и время, отведенное на их рассмотрение");
-                    t.Rows[0].Cells[1].Paragraphs[0].Append("Методические рекомендации руководителю учебного занятия");
-                    t.Rows[1].Cells[0].Paragraphs[0].Append("Вступительная часть (5 минут)");
-                    t.Rows[1].Cells[1].Paragraphs[0].Append("Доклад командира группы о готовности к занятиям. Объявление темы и целей занятий.");
-
-                    for (int i = 0; i < wordArgs.splittedText.Count; i++)
                     {
-                        Row dynamicRow = t.InsertRow();
-                        dynamicRow.Cells[0].Paragraphs.First().Append(wordArgs.parts[i]);
-                        dynamicRow.Cells[0].Paragraphs[0].Append(wordArgs.splittedText[i]);
-                        //дальше выбираем, будет ли правый столбец будет браться из внешнего файла, или будет дополняться содержанием правого столбца
-                        if (externalContensRight == false) //
-                        {
-                            dynamicRow.Cells[1].Paragraphs.First().Append
-                                                (contents_right[i % contents_right.Length]); // здесь знак "%" возвращает в начало содержания, если в левом столбце больше частей, чем в данном массиве 
-                        }
-                        else
-                        {
-                            if (wordArgs.splittedText[i].Contains("активной форме"))
-                            {//Если есть активная форма, то не нужно ничего подставлять в начале
+                        t.Rows[0].Cells[0].Paragraphs[0].Append("Учебные вопросы и время, отведенное на их рассмотрение");
+                        t.Rows[0].Cells[1].Paragraphs[0].Append("Методические рекомендации руководителю учебного занятия");
+                        t.Rows[1].Cells[0].Paragraphs[0].Append("Вступительная часть (5 минут)");
+                        t.Rows[1].Cells[1].Paragraphs[0].Append("Доклад командира группы о готовности к занятиям. Объявление темы и целей занятий.");
 
-                                dynamicRow.Cells[1].Paragraphs.First().Append(wordArgs.splittedText[i]);
+                        for (int i = 0; i < wordArgs.splittedText.Count; i++)
+                        {
+                            Row dynamicRow = t.InsertRow();
+                            dynamicRow.Cells[0].Paragraphs.First().Append(wordArgs.parts[i]);
+                            dynamicRow.Cells[0].Paragraphs[0].Append(wordArgs.splittedText[i]);
+                            //дальше выбираем, будет ли правый столбец будет браться из внешнего файла, или будет дополняться содержанием правого столбца
+                            if (externalContensRight == false) //
+                            {
+                                dynamicRow.Cells[1].Paragraphs.First().Append
+                                                    (contents_right[i % contents_right.Length]); // здесь знак "%" возвращает в начало содержания, если в левом столбце больше частей, чем в данном массиве 
                             }
                             else
                             {
-                                dynamicRow.Cells[1].Paragraphs.First().Append
-                                                        ("Группа изучает " + char.ToLower(wordArgs.splittedText[i][0]) + wordArgs.splittedText[i].Substring(1));
+                                if (wordArgs.splittedText[i].Contains("активной форме"))
+                                {//Если есть активная форма, то не нужно ничего подставлять в начале
+
+                                    dynamicRow.Cells[1].Paragraphs.First().Append(wordArgs.splittedText[i]);
+                                }
+                                else
+                                {
+                                    dynamicRow.Cells[1].Paragraphs.First().Append
+                                                            ("Группа изучает " + char.ToLower(wordArgs.splittedText[i][0]) + wordArgs.splittedText[i].Substring(1));
+                                }
+
                             }
-
+                            t.Rows.Add(dynamicRow);
                         }
-                        t.Rows.Add(dynamicRow);
-                    }
 
-                    Row nextStaticRow = t.InsertRow();
-                    nextStaticRow.Cells[0].Paragraphs[0].Append("Заключительная часть (5 минут)");
-                    nextStaticRow.Cells[1].Paragraphs[0].Append("Подведение итогов занятия. Ответ на вопросы слушателей. Выставление оценок. Объявление задания для самостоятельной работы.");
-                    t.Rows.Add(nextStaticRow);
-                }
-                document.Save(); // Save this document to disk.
-        //}
+                        Row nextStaticRow = t.InsertRow();
+                        nextStaticRow.Cells[0].Paragraphs[0].Append("Заключительная часть (5 минут)");
+                        nextStaticRow.Cells[1].Paragraphs[0].Append("Подведение итогов занятия. Ответ на вопросы слушателей. Выставление оценок. Объявление задания для самостоятельной работы.");
+                        t.Rows.Add(nextStaticRow);
+                    }
+                    document.Save(); // Save this document to disk. 
+
+
             return Task.CompletedTask;
-    }
+        }
 
         public int searchInSource(int column, int row) //
         {

@@ -65,7 +65,7 @@ namespace WordExcel_Winforms_net6
         public Form1()
         {
             InitializeComponent();
-            label1.Text = "Ready";
+            //label1.Text = "Ready";
             TemporaryTestMethod();// убрать метод, это чисто тестинг
         }
 
@@ -83,7 +83,7 @@ namespace WordExcel_Winforms_net6
                 if (b1.source_ext == ".xlsx")
                 {
 
-                    b1.source_is_Excel();
+                    await b1.source_is_Excel();
                 }
                 else if (b1.source_ext == ".docx")
                 {
@@ -220,14 +220,25 @@ namespace WordExcel_Winforms_net6
 
         public async Task MasterFnc()
         {
-            using (var document = DocX.Load(b1.wordFile))
+            //while (b1.argsQ.Count > 0)
+            //{
+            //    using (b1.document = DocX.Load(b1.wordFile))
+            //    {
+            //        //var p = b1.argsQ.Dequeue();
+            //        await Task.Run(() => b1.WordBuild(b1.argsQ.Dequeue()));
+            //        ops++;
+            //        label1.Text = String.Format("Выполнено {0} планов практических занятий", ops.ToString());
+            //        label2.Text = String.Format("Глубина очереди: " + b1.argsQ.Count.ToString());
+            //    }
+            //}
+            var p = new WordArgs();
+            while (b1.argsQ.TryDequeue(out p))
             {
-                b1.document = document;
-                while (b1.argsQ.Count > 0)
+                using (b1.document = DocX.Load(b1.wordFile))
                 {
-                    await Task.Run(() => b1.WordBuild(b1.argsQ.Dequeue()));
+                    await Task.Run(() => b1.WordBuild(p));
                     ops++;
-                    label1.Text = String.Format("Выполнено {0} планов практических занятий", ops.ToString());
+                    //label1.Text = String.Format("Выполнено {0} планов практических занятий", ops.ToString());
                     label2.Text = String.Format("Глубина очереди: " + b1.argsQ.Count.ToString());
                 }
             }
@@ -238,7 +249,7 @@ namespace WordExcel_Winforms_net6
         public async Task source_XML_Word()
         {
 
-
+            int creationOps = 0;
             // Open a WordprocessingDocument for editing using the filepath.
             using (WordprocessingDocument src_docx =
                 WordprocessingDocument.Open(b1.sourceFile, true))
@@ -255,6 +266,12 @@ namespace WordExcel_Winforms_net6
                 for (int i = 0; i < row_count; i++)
                 {
                     await Task.Run(() => insideLoop(i));
+
+                    //label1 = new Label();
+                    //creationOps++;
+                    //label1.Text = String.Format(creationOps.ToString());
+
+
                     progressBar1.PerformStep();
                 }
                 return;
@@ -302,6 +319,7 @@ namespace WordExcel_Winforms_net6
                             b1.argsQ.Enqueue(new WordArgs(wordArgs));
                         }
                     }
+                    
                 }
 
             }
